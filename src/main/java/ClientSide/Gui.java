@@ -2,12 +2,8 @@ package ClientSide;
 
 import Shared.Game;
 import Shared.GameServer;
-import Shared.JsonSerializer;
-import Shared.Requests.StartServerRequest;
 import Shared.Responses.ActiveServerResponse;
-import Shared.Responses.GetGameListResponse;
-import Shared.Responses.StartServerResponse;
-import Shared.Responses.StopServerResponse;
+
 
 import java.awt.*;
 import java.awt.event.*;
@@ -15,122 +11,116 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.List;
 import javax.swing.*;
 
-public class Gui extends JFrame implements ActionListener {
-    private final ServerConnector sc = new ServerConnector(new JsonSerializer());
-    JButton button1, button2, button3, button4;
+public class Gui extends JFrame implements ActionListener, GameListPresenter.View {
     JButton launchButton, stopButton;
-    JPanel panel1, panel2, panel3, panel4;
-    Game game;
-    GameServer gameServer;
+    JPanel gameSelection, serverSelection, serverDetails, activeServerInfo;
+    GameListPresenter presenter;
 
     public Gui() {
+        presenter = new GameListPresenter(this);
         setLayout(new GridLayout(2, 2));
         setSize(500, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        SetPanel1();
+        SetGameSelection();
 
-        panel3 = new JPanel();
-        panel3.setLayout(new FlowLayout());
-        panel3.setBorder(BorderFactory.createLineBorder(Color.BLACK));
-        add(panel3);
+        serverDetails = new JPanel();
+        serverDetails.setLayout(new FlowLayout());
+        serverDetails.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        add(serverDetails);
 
-        panel2 = new JPanel();
-        panel2.setLayout(new FlowLayout());
-        panel2.setBorder(BorderFactory.createLineBorder(Color.BLACK));
-        add(panel2);
+        serverSelection = new JPanel();
+        serverSelection.setLayout(new FlowLayout());
+        serverSelection.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        add(serverSelection);
 
-
-        panel4 = new JPanel();
-        panel4.setLayout(new FlowLayout());
-        panel4.setBorder(BorderFactory.createLineBorder(Color.BLACK));
-        add(panel4);
-        SetPanel4();
-
+        activeServerInfo = new JPanel();
+        activeServerInfo.setLayout(new FlowLayout());
+        activeServerInfo.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        add(activeServerInfo);
+        SetActiveServerInfo();
     }
 
-    private void SetPanel4(){
-        panel4.removeAll();
+    public void SetActiveServerInfo(){
+        activeServerInfo.removeAll();
         validate();
         repaint();
-        try {
-            ActiveServerResponse response = sc.doPost("/GetActiveServer",null,null, ActiveServerResponse.class);
-            if(response.isActive()){
-                panel4.setLayout(new GridLayout(6, 1));
+        presenter.PopulateActiveServerInfo();
+        validate();
+        repaint();
+    }
 
-                JLabel titleLabel = new JLabel("Active Server");
-                titleLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-                titleLabel.setPreferredSize(new Dimension(230, 15));
-                panel4.add(titleLabel);
+    public void PopulateActiveServerInfo(ActiveServerResponse response){
+        if(response.isActive()){
+            activeServerInfo.setLayout(new GridLayout(6, 1));
 
-                System.out.println(response.getGameName());
-                JLabel gameTitle = new JLabel(response.getGameName());
-                gameTitle.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-                gameTitle.setPreferredSize(new Dimension(230, 15));
-                panel4.add(gameTitle);
+            JLabel titleLabel = new JLabel("Active Server");
+            titleLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+            titleLabel.setPreferredSize(new Dimension(230, 15));
+            activeServerInfo.add(titleLabel);
 
-                JLabel serverName = new JLabel(response.getServerName());
-                serverName.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-                serverName.setPreferredSize(new Dimension(230, 15));
-                panel4.add(serverName);
+            System.out.println(response.getGameName());
+            JLabel gameTitle = new JLabel(response.getGameName());
+            gameTitle.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+            gameTitle.setPreferredSize(new Dimension(230, 15));
+            activeServerInfo.add(gameTitle);
 
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                JLabel startTime = new JLabel("Launched at: " + sdf.format(response.getTs()));
-                startTime.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-                startTime.setPreferredSize(new Dimension(230, 15));
-                panel4.add(startTime);
+            JLabel serverName = new JLabel(response.getServerName());
+            serverName.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+            serverName.setPreferredSize(new Dimension(230, 15));
+            activeServerInfo.add(serverName);
 
-                JLabel ip = new JLabel("IP Address: " + response.getIp());
-                ip.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-                ip.setPreferredSize(new Dimension(230, 15));
-                panel4.add(ip);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            JLabel startTime = new JLabel("Launched at: " + sdf.format(response.getTs()));
+            startTime.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+            startTime.setPreferredSize(new Dimension(230, 15));
+            activeServerInfo.add(startTime);
 
-                // create the launch button
-                stopButton = new JButton("Stop");
-                stopButton.addActionListener(this);
-                stopButton.setPreferredSize(new Dimension(230, 30));
-                panel4.add(stopButton, BorderLayout.SOUTH);
-            }else{
-                JLabel titleLabel;
-                titleLabel = new JLabel("No Active Server");
-                titleLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-                panel4.add(titleLabel);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            JLabel ip = new JLabel("IP Address: " + response.getIp());
+            ip.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+            ip.setPreferredSize(new Dimension(230, 15));
+            activeServerInfo.add(ip);
+
+            // create the launch button
+            stopButton = new JButton("Stop");
+            stopButton.addActionListener(this);
+            stopButton.setPreferredSize(new Dimension(230, 30));
+            activeServerInfo.add(stopButton, BorderLayout.SOUTH);
+        }else{
+            JLabel titleLabel;
+            titleLabel = new JLabel("No Active Server");
+            titleLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+            activeServerInfo.add(titleLabel);
         }
-        validate();
-        repaint();
     }
 
-    private void SetPanel1(){
-        panel1 = new JPanel();
-        panel1.setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        panel1.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+    private void SetGameSelection(){
+        gameSelection = new JPanel();
+        gameSelection.setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        gameSelection.setBorder(BorderFactory.createLineBorder(Color.BLACK));
         //panel1.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        List<Game> games;
         JLabel titleLabel;
-        JPanel listPanel;
-        try {
-            games = sc.doPost("/GetGameList",null,null, GetGameListResponse.class).getGameList();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+
         titleLabel = new JLabel("Games");
         //titleLabel.setPreferredSize(new Dimension(panel1.getWidth(), 50));
         titleLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-        panel1.add(titleLabel);
+        gameSelection.add(titleLabel);
+        presenter.PopulateGameList();
+        add(gameSelection);
+    }
 
+    @Override
+    public void PopulateGameSelection(List<Game> games) {
+        JPanel listPanel;
         listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         JScrollPane scrollPane = new JScrollPane(listPanel);
         scrollPane.setPreferredSize(new Dimension(250, 200));
         scrollPane.setBorder(BorderFactory.createLineBorder(Color.BLACK));
-        panel1.add(scrollPane);
+        gameSelection.add(scrollPane);
 
         // Add click listeners to each game label
         for (Game game : games) {
@@ -139,39 +129,32 @@ public class Gui extends JFrame implements ActionListener {
             gameLabel.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    SetPanel2(game);
-                    //changeGameWindow(game);
+                    presenter.PopulateServerSelection(game);
                 }
             });
             listPanel.add(gameLabel);
         }
-        add(panel1);
     }
 
-    private void SetPanel2(Game game){
-        this.game = game;
-        panel2.removeAll();
-        panel3.removeAll();
+    public void PopulateServerSelection(List<GameServer> gameServers){
+        serverSelection.removeAll();
+        serverDetails.removeAll();
         validate();
         repaint();
-
 
         JLabel titleLabel;
         JPanel listPanel;
 
-        List<GameServer> gameServers = Arrays.asList(game.getServers());
-
         titleLabel = new JLabel("Servers");
-        //titleLabel.setPreferredSize(new Dimension(panel1.getWidth(), 50));
         titleLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-        panel2.add(titleLabel);
+        serverSelection.add(titleLabel);
 
         listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         JScrollPane scrollPane = new JScrollPane(listPanel);
         scrollPane.setPreferredSize(new Dimension(250, 200));
         scrollPane.setBorder(BorderFactory.createLineBorder(Color.BLACK));
-        panel2.add(scrollPane);
+        serverSelection.add(scrollPane);
 
         // Add click listeners to each game label
         for (GameServer gameServer : gameServers) {
@@ -180,30 +163,25 @@ public class Gui extends JFrame implements ActionListener {
             gameLabel.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    SetPanel3(gameServer);
+                    presenter.PopulateServerDetails(gameServer);
                     System.out.println(gameServer.getName());
-                    //changeGameWindow(game);
                 }
             });
             listPanel.add(gameLabel);
         }
-        add(panel2);
+        add(serverSelection);
         validate();
         repaint();
     }
 
-    private void SetPanel3(GameServer gameServer) {
-        this.gameServer = gameServer;
-        panel3.removeAll();
+    public void PopulateServerDetails(GameServer gameServer) {
+        serverDetails.removeAll();
         validate();
         repaint();
-
         JTextArea descriptionTextArea;
-
 
         // create the clickable link for the discord URL
         JLabel discordLink = new JLabel("<html><u>" + "Server Discord Link:</u><br><u>"+ gameServer.getDiscordURL() + "</u></html>");
-        //discordLink.setFont(new Font("Arial", Font.PLAIN, 18));
         discordLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         discordLink.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
@@ -217,7 +195,7 @@ public class Gui extends JFrame implements ActionListener {
 
         JPanel discordLinkPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         discordLinkPanel.add(discordLink);
-        panel3.add(discordLinkPanel, BorderLayout.NORTH);
+        serverDetails.add(discordLinkPanel, BorderLayout.NORTH);
 
         // create the description text area
         descriptionTextArea = new JTextArea(gameServer.getDescription());
@@ -226,12 +204,12 @@ public class Gui extends JFrame implements ActionListener {
         descriptionTextArea.setWrapStyleWord(true);
         descriptionTextArea.setPreferredSize(new Dimension(230, 100));
         JScrollPane descriptionScrollPane = new JScrollPane(descriptionTextArea);
-        panel3.add(descriptionScrollPane, BorderLayout.CENTER);
+        serverDetails.add(descriptionScrollPane, BorderLayout.CENTER);
 
         // create the launch button
         launchButton = new JButton("Launch");
         launchButton.addActionListener(this);
-        panel3.add(launchButton, BorderLayout.SOUTH);
+        serverDetails.add(launchButton, BorderLayout.SOUTH);
 
         validate();
         repaint();
@@ -239,19 +217,9 @@ public class Gui extends JFrame implements ActionListener {
 
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == stopButton) {
-            try {
-                sc.doPost("/StopServer",null,null,StopServerResponse.class);
-                SetPanel4();
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
+            presenter.StopServer();
         }if (e.getSource() == launchButton){
-            try {
-                StartServerResponse response = sc.doPost("/StartServer",new StartServerRequest(game,gameServer),null, StartServerResponse.class);
-                SetPanel4();
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
+            presenter.StartServer();
         }
     }
 
